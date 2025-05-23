@@ -4,8 +4,8 @@
 
 HTML5, Canvas ve JavaScript kullanılarak geliştirilen bu 2D platform oyununda oyuncu, sevimli bir karakteri kontrol ederek engelleri aşar, blokların üstünde zıplar, boşluklardan kaçınır, havada şemsiyesi ile süzülür ve kedisine ulaşmaya çalışır.
 
-![Oyun Görseli 1](https://github.com/ahmetymtkn/photo/blob/main/game_photo_3.png)
-![Oyun Görseli 2](https://github.com/ahmetymtkn/photo/blob/main/game_photo_2.png)
+![Oyun Görseli 1](https://github.com/ahmetymtkn/ahmetymtkn.github.io/blob/main/game_images/game_photo_3.png)
+![Oyun Görseli 2](https://github.com/ahmetymtkn/ahmetymtkn.github.io/blob/main/game_images/game_photo_2.png)
 
 
 
@@ -17,7 +17,7 @@ Kediye tıklayarak oyuna ulaşabilirsiniz.
 
 **Kontroller:**
 
-![Oyun Görseli 3](https://github.com/ahmetymtkn/photo/blob/main/game_photo_1.png)
+![Oyun Görseli 3](https://github.com/ahmetymtkn/ahmetymtkn.github.io/blob/main/game_images/game_photo_1.png)
 
 
    * **A/←:** Sola hareket
@@ -36,7 +36,7 @@ Kediye tıklayarak oyuna ulaşabilirsiniz.
 - **Oyuna Ait Sesler:** Arkaplan müziği; kazanma, zıplama ve şemsiye efektleri ile kullanıcıya oyun hissettirilmeye çalışılmıştır.
 - **Zorluk:** Doğru rüzgar seçimi ve doğru kombatlar ile oyunun tamamlanması için zor bir harita tasarlanmıştır.
 
-![Oyun Görseli 4](https://github.com/ahmetymtkn/photo/blob/main/game_photo_4.png)
+![Oyun Görseli 4](https://github.com/ahmetymtkn/ahmetymtkn.github.io/blob/main/game_images/game_photo_4.png)
 
 ## Oyun için kullanılan kaynaklar
 
