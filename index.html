@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+
+    <meta charset="UTF-8" />
+    <title>THE NAME OF THE WIND</title>
+    <audio id="bgMusic" src="sound/backgroundMusic.mp3" loop></audio>
+
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #0a3a48;
+        font-family: 'Press Start 2P', monospace;
+        overflow: hidden;
+      }
+      button{
+        font-family: 'Press Start 2P', monospace;
+      }
+      canvas {
+        background: #eee;
+        display: block;
+      }
+
+      #gameDiv {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 1500px;
+        height: 750px;
+      }
+
+      .page {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1500px;
+        height: 750px;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 10;
+        font-family: 'Press Start 2P', monospace;
+      }
+
+      .pageContent {
+        background-color: #fdd9a0;
+        border: 3px solid #d17750;
+        padding: 20px 40px;
+        border-radius: 6px;
+        text-align: left;
+        box-shadow: 5px 5px 0 #c06235;
+        color: #5b2d1a;
+      }
+
+      .weather-option {
+        font-size: 14px;
+        border-radius: 10px;
+        padding: 10px 0;
+        cursor: pointer;
+        color: #fff;
+        background-color: #d17750;
+        margin-bottom: 6px;
+        padding-left: 10px;
+        text-shadow: 1px 1px 0 #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .weather-option:hover {
+        background-color: #ff9966;
+      }
+
+      button {
+        font-size: 14px;
+        padding: 10px 20px;
+        cursor: pointer;
+        border: none;
+        background-color: #d17750;
+        color: white;
+        border-radius: 6px;
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      button:hover {
+        background-color: #ff9966;
+      }
+
+    </style>
+
+  </head>
+  <body>
+    <div id="gameDiv">
+      <canvas id="game" width="1500" height="750" ></canvas>
+
+      <!-- Rüzgar Seçim Penceresi -->
+      <div id="windPage" class="page">
+        <div class="pageContent">
+          <h2>Hava Tipini Seç</h2>
+          <br>
+          <div onclick="setWeather(0)" class="weather-option">Rüzgarsız</div>
+          <div onclick="setWeather(1)" class="weather-option">Soldan Esen Rüzgar</div>
+          <div onclick="setWeather(2)" class="weather-option">Sağdan Esen Rüzgar</div>
+          <div onclick="setWeather(3)" class="weather-option">Fırtına </div>
+
+          <div style="margin-top: 20px; text-align:center;">
+            <button onclick="closeWindPage()">Kapat</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Oyun Sonu Penceresi -->
+      <div id="finishPage" class="page">
+        <div class="pageContent" style="text-align: center;">
+          <div style="display: flex; justify-content: center; gap: 30px; align-items: flex-end;">
+            <img src="img/player.png" alt="Player" style="height: 120px;" />
+            <img src="img/cat.png" alt="Cat" style="height: 100px;" />
+          </div>
+          <br>
+          <h2 style="margin-top: 20px;">OYUN BİTTİ</h2>
+          <br>
+          <p id="time"></p>
+          <div style="margin-top: 20px; text-align:center;">
+            <button onclick="restartGame()">Tekrar Oyna</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Başlangıç Ekranı -->
+      <div id="startScreen" class="page" style="display: flex;">
+        <div class="pageContent" style="max-width: 600px;">
+          <h2>Macera Başlıyor!</h2>
+          <br>
+          <p><strong>Kontroller:</strong></p>
+          <br>
+          <ul style="font-size: 12px; line-height: 2; display: flex; flex-direction: column; gap: 20px;">
+            <li>→ / D : Sağa Hareket</li>
+            <li>← / A : Sola Hareket</li>
+            <li>SPACE : Zıpla</li>
+            <li>Çift SPACE : Çift Zıplama</li>
+            <li>SPACE Basılı Tut: Şemsiye </li>
+          </ul>
+          <div style="margin-top: 20px; text-align:center;">
+            <button onclick="startGame()">Oyuna Başla</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </body>
+  <script>
+    // CANVAS
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    // Oyun içinde kullanılacak ses dosyaları tanımlanıyor
+    const jumpSound = new Audio("sound/jumpEffect.mp3");
+    const umbrellaSound = new Audio("sound/umbrellaEffect.mp3");
+    const music = document.getElementById("bgMusic");
+
+    // Oyuncunun respawn noktası ve kameranın başlangıç konumu
+    let checkpoint = { x:600, y:900 };
+    let camera = { x: -300, y: 500 };
+
+    // Zaman ölçümü ve kontrol değişkenleri
+    let startTime , endTime;
+    let timercontrol = true;
+    let animationID;
+    let gamecontrol = false;
+
+    // Mesaj gösterimi için kontrol ve mesaj içeriği
+    let showMessage = false;
+    let messageText = "";
+
+    // Sabitler ve fizik değerleri
+    const TILE_SIZE = 64;
+    const GRAVITY = 0.25;
+    const JUMP_FORCE = -7.5;
+    let speed = 2;
+    let runFrame = 0;
+    let runFrameCount = 0;
+    const windYforce = 2.5;
+    let weatherControl = 0;
+    let row, col;
+
+    // Oyuncu nesnesi
+    const player = {
+        x: 190,
+        y: 1090,
+        width: TILE_SIZE,
+        height: TILE_SIZE,
+        velocityX: 0,
+        velocityY: 0,
+        Ground: false,
+        direction: 1, 
+        jumpCount: 0,
+        Gliding: false,
+        canJump: true
+    };
+
+    // Kedi nesnesi
+    const cat = {
+        x: 400,
+        y: 590,
+        width: TILE_SIZE,
+        height: TILE_SIZE,
+        velocityX: 2, 
+        direction: 1,
+        frame: 0,
+        walkTimer: 0,
+        walking: false 
+    };
+
+    //Oyun içinde kullanılacak resimler
+    const images = {
+        player: "img/player.png",
+        playerRun1: "img/running_one.png",
+        playerRun2: "img/running_two.png",
+        playerJump: "img/jump.png",     
+        playerFall: "img/fall.png",
+        playerUmbrella: "img/umbrella.png",
+        grass: "img/grass.png",
+        dirt: "img/dirt.png",
+        tent: "img/tent.png",
+        bench: "img/bench.png",
+        background: "img/background.png",
+        flower: "img/flower.png",
+        cat: "img/cat.png",
+        catRun1: "img/catRun1.png",
+        catRun2: "img/catRun2.png"
+    };
+
+    //Resimlerin yüklenmesi
+    const loadedImg = {};
+    for (let key in images) {
+        const img = new Image();
+        img.src = images[key];
+        loadedImg[key] = img;
+    }
+
+    // Tuş takibi
+    const keys = {
+        right: false,
+        left: false,
+        jump: false
+    };
+
+    //Oyun haritası için 2 boyutlu dizi
+    const tileMap = [
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 7, 7, 7, 8, 8, 6, 5],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 5, 1, 0, 0, 0, 0, 0, 0, 4, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 2, 1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 2, 2, 1, 1, 0, 0, 0, 0, 0, 0, 5, 0, 3, 0, 5, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 2, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0],
+        [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [2, 2, 0, 0, 9, 9, 9, 9, 9, 9, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 3, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+        [2, 2, 6, 9, 9, 9, 9, 9, 9, 9, 9, 5, 0, 0, 0, 0, 0, 0, 5, 5, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 1, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ];
+
+    // Klavye tuşuna basıldığında çalışacak olay dinleyici
+    document.addEventListener("keydown", (e) => {
+        const key = e.key.toLowerCase();
+        //sağ hareket kontrolü
+        if (key === "arrowright" || key === "d") {
+            keys.right = true;
+        }
+        //sol hareket kontrolü
+        else if (key === "arrowleft" || key === "a") {
+            keys.left = true;
+        }
+        //zıplama kontrolü
+        else if (e.code === "Space") {
+                jumpSound.currentTime = 0;
+                jumpSound.volume = 0.1;
+                jumpSound.play();
+            if (!keys.jump && player.canJump) {
+                keys.jump = true;
+                if (player.Ground) {
+                  //yerden zıplama
+                  player.velocityY = JUMP_FORCE;
+                  player.jumpCount = 1;
+                  player.Ground = false;
+                } 
+                else if (player.jumpCount < 2) {
+                  //çift zıplama
+                  player.velocityY = JUMP_FORCE;
+                  player.jumpCount++;
+                }
+                player.canJump = false;
+            }
+        }
+        else if (key === "e" && tileMap[row-1][col] == 4) {
+          // hava değişimi sayfasını aç
+          windPage();
+        }
+    });
+
+    // Klavye tuşu bırakıldığında çalışacak olay dinleyici
+    document.addEventListener("keyup", (e) => {
+        const key = e.key.toLowerCase();
+        if (key === "arrowright" || key === "d") {
+          //sağa hareketi durdur
+          keys.right = false;
+        } 
+        else if (key === "arrowleft" || key === "a") {
+          //sola hareketi durdur
+          keys.left = false;
+        } 
+        else if (e.code === "Space") {
+          //zıplama sıfırlama
+          jumpSound.currentTime = 0;
+          keys.jump = false;
+          player.Gliding = false;
+          player.canJump = true;
+        }
+    });
+
+    // Oyuncu hareketini kontrol eden fonksiyon
+    function checkPosition(x, y, w, h) {
+        showMessage = false;
+        for ( row = 0; row < tileMap.length; row++) {
+            for ( col = 0; col < tileMap[row].length; col++) {
+              const tile = tileMap[row][col];
+              const tx = col * TILE_SIZE;
+              const ty = row * TILE_SIZE;
+
+              // Oyuncu ile tile arasında çarpışma olup olmadığını kontrol et
+              const overlapX = x < tx + TILE_SIZE && x + w > tx;
+              const overlapY = y < ty + TILE_SIZE && y + h > ty;
+
+              //oyunuc haritadaki basamak blokları ile çarpışıyorsa konum döndürür
+              if (tile === 1 || tile === 2) {
+                  if (overlapX && overlapY) {
+                      return { x: tx, y: ty };
+                  }
+              }
+              //checkpoint kontrolü
+              else if (tile === 3 && overlapX && overlapY) {
+                      checkpoint.x = tx;
+                      checkpoint.y = ty;
+                      showMessage = true;
+                      messageText = "Checkpoint!";
+                      console.log("Checkpoint bulundu:", checkpoint);
+              }
+              //hava durumu kontrol noktası
+              else if (tileMap[row][col] == 4 && overlapX && overlapY) {
+                  showMessage = true;
+                  messageText = "'E' tuşuna basarak hava değişimini bekle";
+              }
+              //kedi kontrolü
+              else if (tile === 6 && overlapX && overlapY) {
+                  finishPage();
+              }
+              //Karakter konuşması gereken yer
+              else if (tile === 7 && overlapX && overlapY) {
+                      showMessage = true;
+                      messageText = "'Buldum seni!'";
+              }
+              //kedi konuşması gereken yer
+              else if (tile === 8 && overlapX && overlapY) {
+                      showMessage = true;
+                      messageText = "'meow...'";
+              }
+              //oyun amacı bildirme yeri
+              else if (tile === 9 && overlapX && overlapY) {
+                      showMessage = true;
+                      messageText = "Kediyi bul";
+              }
+            }
+        }
+        return null;
+    }
+
+    // Oyuncunun hareketlerini, yerçekimini, çarpışmaları ve kamerayı kontrol eder
+    function control() {
+      // Oyun aktif değilse çalışmaz
+      if (!gamecontrol) 
+          return;
+      // Sağ tuş basılıysa oyuncu sağa hareket eder
+      if (keys.right) {
+          player.velocityX = speed;
+          player.direction = 1; 
+      }
+      // Sol tuş basılıysa oyuncu sola hareket eder 
+      else if (keys.left) {
+          player.velocityX = -speed;
+          player.direction = -1;
+      } 
+      else {
+          player.velocityX = 0;
+      }
+      //oyunucu havadaysa
+      if (!player.Ground) {
+          if (keys.jump && player.velocityY > 0) {
+              //havadaysa ve zıplama tuşu aktifse şemsiye açar
+              jumpSound.pause();
+              umbrellaSound.currentTime = 0;
+              umbrellaSound.play();
+              player.Gliding = true;
+              player.velocityY += GRAVITY * 0.05;
+          } 
+          else {
+              player.Gliding = false;
+              player.velocityY += GRAVITY;
+          }
+      } 
+      else {
+          player.Gliding = false;
+      }
+      // Oyuncunun x koordinatlarını güncelle
+      player.x += player.velocityX;
+      // Yeni konumda çarpışma olup olmadığını kontrol et
+      let posX = checkPosition(player.x, player.y, player.width, player.height);
+      if (posX) {
+        if (player.velocityX > 0) 
+          player.x = posX.x - player.width;// Sağdan çarptıysa geri itilir
+        else if (player.velocityX < 0) 
+            player.x = posX.x + TILE_SIZE;// Soldan çarptıysa ileri itilir
+        player.velocityX = 0;
+      }
+      // Oyuncunun y koordinatlarını güncelle      
+      player.y += player.velocityY;
+      // Yeni konumda çarpışma olup olmadığını kontrol et
+      let posY = checkPosition(player.x, player.y, player.width, player.height);
+      if (posY) {
+        if (player.velocityY > 0) {
+          // Yere indiğinde yere sabitlenir
+          player.y = posY.y - player.height;
+          player.Ground = true;
+          player.jumpCount = 0;
+          player.canJump=true;
+        }
+        else if (player.velocityY < 0) {
+          // Yukarı çarptığında aşağıya itilir
+          player.y += TILE_SIZE;
+        }
+        player.velocityY = 0;
+      }
+
+      if (!checkPosition(player.x, player.y + 1, player.width, player.height)) {
+        player.Ground = false;
+      }
+      //oyuncu düşerse checkpoint'e geri döner
+      if (player.y >  2000) {
+        player.x = checkpoint.x;
+        player.y = checkpoint.y;
+      }
+      // kamera hareketi
+      camera.x = player.x - canvas.width / 2 + player.width / 2;
+      camera.y = player.y - canvas.height / 2 + player.height / 2;
+
+    }
+
+    //Hava durumu kontrolü
+    function weather(){
+        speed = 2;
+        if (weatherControl == 1 && player.Gliding) {
+            // soldan esen rüzgar için sağa hareketi hızlandırır, sola hareketi yavaşlatır
+            if(keys.right) {
+                speed = 3;
+            }
+            else if (keys.left) {
+                speed = 1;
+            }
+        }
+        else if (weatherControl == 2 && player.Gliding ) {
+            // sağdan esen rüzgar için sola hareketi hızlandırır, sağa hareketi yavaşlatır
+            if(keys.right) {
+                speed = 1;
+            }
+            else if (keys.left) {
+                speed = 3;
+            }
+        }
+        else if (weatherControl == 3 && player.Gliding) {
+            // fırtına için sola ve sağa hareketi yavaşlatır yukarı doğru itilir
+            player.y -= windYforce;
+            speed = 0.8;
+        }
+    }
+
+    //Karakter animasyonları
+    function createPlayer() {
+        if(!player.Ground && gamecontrol){// eğer oyuncu havadaysa
+            if(player.velocityY < 0) {// yukarı zıplıyorsa
+                return loadedImg.playerJump;
+            } 
+            else if(player.Gliding){//süzülüyorsa
+                return loadedImg.playerUmbrella;
+            } 
+            else{
+                return loadedImg.playerFall;
+            }
+        } 
+        else{
+            if(player.velocityX !== 0) {// eğer oyuncu hareket ediyorsa
+                runFrameCount++;
+                if(runFrameCount >= 10) {
+                    runFrame = (runFrame + 1) % 2;
+                    runFrameCount = 0;
+                }
+                if(runFrame === 0) {
+                    return loadedImg.playerRun1;
+                } 
+                else{
+                    return loadedImg.playerRun2;
+                }
+            } 
+            else{
+                runFrame = 0;
+                runFrameCount = 0;
+                return loadedImg.player;
+            }
+        }
+    }
+
+    //mesaj gösterimi
+    function createMessage() {
+        const x = canvas.width / 2;
+        const y = 200; 
+        if (showMessage){//konuma göre mesaj gösterimi
+            ctx.font = "18px 'Press Start 2P', monospace";
+            ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "top";
+            ctx.fillText(messageText, x, y);
+        }
+    }
+
+    //harita ve nesnelerin çizimi
+    function createMap() {
+        for (let rowMap = 0; rowMap < tileMap.length; rowMap++){
+            for (let colMap = 0; colMap < tileMap[rowMap].length; colMap++){
+
+                const tile = tileMap[rowMap][colMap];
+                const x = colMap * TILE_SIZE;
+                const y = rowMap * TILE_SIZE;
+
+                if(tile === 1){
+                    ctx.drawImage(loadedImg.grass, x - camera.x, y - camera.y, TILE_SIZE, TILE_SIZE);// Çim
+                } 
+                else if(tile === 2){
+                    ctx.drawImage(loadedImg.dirt, x - camera.x, y - camera.y, TILE_SIZE, TILE_SIZE);// Toprak
+                }
+                else if(tile === 3){
+                    ctx.drawImage(loadedImg.tent, x - camera.x, y - camera.y, TILE_SIZE*2, TILE_SIZE);// Çadır
+                } 
+                else if(tile === 4){
+                    ctx.drawImage(loadedImg.bench, x - camera.x, y - camera.y, TILE_SIZE*2, TILE_SIZE);// Bank
+                }
+                else if(tile === 5){
+                    ctx.drawImage(loadedImg.flower, x - camera.x, y - camera.y, TILE_SIZE, TILE_SIZE);// Çiçek
+                }
+                else if(tile === 6){
+                    ctx.drawImage(loadedImg.cat, x - camera.x, y - camera.y, TILE_SIZE, TILE_SIZE);// Kedi
+                }
+            }
+        }
+    }
+
+    //Karakterin yönüne göre animasyon çizimi
+    function directionPlayer() {
+
+        const sprite = createPlayer(); 
+        ctx.save();
+
+        if (player.direction === -1) {
+            ctx.translate(player.x - camera.x + player.width, player.y - camera.y);
+            ctx.scale(-1, 1);
+            ctx.drawImage(sprite, 0, 0, player.width, player.height);
+        } 
+        else {
+            ctx.drawImage(sprite, player.x - camera.x, player.y - camera.y, player.width, player.height);
+        }
+        ctx.restore();
+    }
+
+    //Arka plan çizimi
+    function backgroundImg() {
+        const bg = loadedImg.background;
+        const parallaxFactor = 0.5;
+        const offsetX = (camera.x * parallaxFactor) % canvas.width;
+        ctx.fillStyle = "#0a3a48"; // arla planda boşluk olursa renk ile doldurur
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(bg, -offsetX, 0, canvas.width, canvas.height);
+        ctx.drawImage(bg, canvas.width - offsetX, 0, canvas.width, canvas.height);
+    }
+
+    //Hava tipi seçimi
+    function setWeather(type) {
+        weatherControl = type;
+        closeWindPage();
+    }
+
+    //Hava durumu sayfasını aç
+    function windPage() {
+        const page = document.getElementById("windPage");
+        page.style.display = "flex";
+    }
+
+    //Hava durumu sayfasını kapat
+    function closeWindPage() {
+        const page = document.getElementById("windPage");
+        page.style.display = "none";
+    }
+
+    let windParticles = [];// rüzgar parçacıkları
+
+    //rüzgar parçacıklarını oluştur
+    function createWindParticles() {
+        for (let i = 0; i < 20; i++) {
+            windParticles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                length: 30 + Math.random() * 20,
+                speed: 1 + Math.random() * 1.5,
+                opacity: 0.1 + Math.random() * 0.2
+            });
+        }
+    }
+
+    //rüzgar parçacıklarını çiz
+    function createWindParticle() {
+        ctx.save();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+        ctx.lineWidth = 2;
+        
+        for (let particle of windParticles) {
+            ctx.globalAlpha = particle.opacity;
+            ctx.beginPath();
+
+            if(weatherControl === 1 ){
+                // Soldan sağa
+                ctx.moveTo(particle.x - camera.x, particle.y - camera.y);
+                ctx.lineTo(particle.x + particle.length - camera.x, particle.y - camera.y);
+                particle.x += particle.speed;
+
+                // Ekranı geçtiyse sola al
+                if(particle.x > canvas.width + camera.x) {
+                    particle.x = camera.x - 50;
+                    particle.y = camera.y + Math.random() * canvas.height;
+                }
+            } 
+            else if(weatherControl === 2 ){
+                // Sağdan sola
+                ctx.moveTo(particle.x - camera.x, particle.y - camera.y);
+                ctx.lineTo(particle.x - particle.length - camera.x, particle.y - camera.y);
+                particle.x -= particle.speed;
+
+                // Ekranı geçtiyse sağa al
+                if (particle.x < camera.x - 50){
+                    particle.x = canvas.width + camera.x + 50;
+                    particle.y = camera.y + Math.random() * canvas.height;
+                }
+            }
+            else if(weatherControl === 3){
+                // Aşağıdan yukarıya
+                ctx.moveTo(particle.x - camera.x, particle.y - camera.y);
+                ctx.lineTo(particle.x - camera.x, particle.y - particle.length - camera.y);
+                particle.y -= particle.speed;
+                // Ekranı geçtiyse aşağı al
+                if(particle.y < camera.y - 50) {
+                    particle.y = canvas.height + camera.y + 50;
+                    particle.x = camera.x + Math.random() * canvas.width;
+                }
+            }
+
+            ctx.stroke();
+        }
+
+        ctx.globalAlpha = 1;
+        ctx.restore();
+
+    }
+
+    //kedi hareketi
+    function updateCat() {
+        showMessage = true;    
+        messageText = "'Hey nereye gidiyorsun? Gel buraya!'";
+        cat.x += cat.velocityX * cat.direction;
+        cat.walkTimer++;
+        if (cat.walkTimer > 15) {
+            cat.frame = (cat.frame + 1) % 2;
+            cat.walkTimer = 0;
+        }
+        // Belirli bir konuma geldikten sonra yürümeyi durdur
+        if (cat.x > 1000) { 
+            showMessage = false;
+            cat.walking = false;
+            gamecontrol = true;
+        }
+    }
+
+    //kedi çizimi
+    function createCat() {
+        ctx.save();
+        let catImg;
+        if(cat.frame === 0){//kedi animasyon takibi
+            catImg = images.catRun1;
+        }
+        else{
+            catImg = images.catRun2;
+        }
+        const img = new Image();
+        img.src = catImg;
+        ctx.drawImage(img, cat.x, cat.y, cat.width, cat.height);
+    }
+
+    // Oyun döngüsü
+    function gameLoop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        control();
+        weather();
+        backgroundImg();
+        createMap();
+        createWindParticle();
+        if(cat.walking) {//kedinin durumuna göre hareketi
+            updateCat();
+            createCat();
+        }
+        directionPlayer();
+        createMessage();
+        animationID = requestAnimationFrame(gameLoop);
+    }
+
+    // Oyun başlatma
+    function startGame() {
+        tileMap[17][2] = 0;
+        document.getElementById('startScreen').style.display = 'none';
+        startTime = new Date();
+        music.volume = 0.3; 
+        music.play();
+        cat.walking = true;
+    }
+
+    // Oyun bitiş sayfası ve kontrolü
+    function finishPage() {
+        const page = document.getElementById("finishPage");
+        page.style.display = "flex";
+        cancelAnimationFrame(animationID);
+        gamecontrol = false;
+        music.pause();
+        const finishSound = new Audio("sound/finishSound.mp3");
+        finishSound.volume = 0.5;
+        finishSound.play();
+        if(timercontrol){
+            endTime = new Date();
+            const elapsedTime = Math.floor((endTime - startTime) / 1000);
+            document.getElementById("time").innerText = `Geçen Süre: ${elapsedTime} saniye`;
+            timercontrol = false;
+        }
+    }
+    
+    // Oyun yeniden başlatma ve ayarları sıfırlama
+    function restartGame() {
+        const page = document.getElementById("finishPage");
+        page.style.display = "none";
+        timercontrol = true;
+        startTime = new Date();
+        player.x = 190;
+        player.y = 1090;
+        player.velocityX = 0;
+        player.velocityY = 0;
+        player.Ground = false;
+        player.direction = 1; 
+        player.jumpCount = 0;
+        player.Gliding = false;
+        player.canJump = true;
+        cat.x = 400;
+        cat.y = 590;
+        cat.velocityX = 2; 
+        cat.direction = 1;
+        cat.frame = 0;
+        cat.walkTimer = 0;
+        cat.walking = true; 
+        gamecontrol = false;
+        camera.x = -300;
+        camera.y = 500;
+        weatherControl = 0;
+        music.currentTime = 0; 
+        music.play();
+    }
+    
+    createWindParticles();
+    gameLoop();
+  </script>
+</html>
